@@ -20,19 +20,20 @@ namespace FtpSync
             BaseDir = conf.LocalFolder.Replace("\\", "/");
             DateTime LastSyncGood = DateTime.Now;
 
-            #region Подключаемся к FTP/FTPS
+            #region Подключаемся к FTP
             Console.Write("Connect => ");
             try
             {
                 // create an FTP client
-                ftp = new FtpClient(conf.IP, 21, conf.Login, conf.Passwd);
+                ftp = new FtpClient(conf.IP, conf.port == -1 ? 21 : conf.port, conf.Login, conf.Passwd);
 
                 // begin connecting to the server
                 ftp.Connect();
             }
             catch
             {
-                ftp = new FtpClient(conf.IP, 21, conf.Login, conf.Passwd);
+                // FTPS
+                ftp = new FtpClient(conf.IP, conf.port == -1 ? 21 : conf.port, conf.Login, conf.Passwd);
                 ftp.EncryptionMode = FtpEncryptionMode.Explicit;
                 ftp.SslProtocols = SslProtocols.Tls;
                 ftp.ValidateCertificate += new FtpSslValidation(OnValidateCertificate);

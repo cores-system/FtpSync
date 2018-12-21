@@ -7,6 +7,7 @@ namespace FtpSync
         public string IP { get; set; }
         public string Login { get; set; }
         public string Passwd { get; set; }
+        public int port { get; set; } = -1; // Auto
 
         public string FtpFolder { get; set; }
         public string LocalFolder { get; set; }
