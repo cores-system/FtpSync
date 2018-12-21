@@ -130,7 +130,7 @@ namespace FtpSync
             }
             #endregion
 
-            Console.WriteLine("\n\nSync Good");
+            Console.WriteLine($"\n\nSync {(SyncGood ? "Good" : "Error")}");
             if (conf.WaitToCloseApp > 0)
                 Thread.Sleep(1000 * conf.WaitToCloseApp);
         }
