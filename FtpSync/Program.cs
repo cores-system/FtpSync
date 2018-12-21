@@ -40,6 +40,9 @@ namespace FtpSync
                 if (conf.LastSyncGood > new FileInfo(folder).LastWriteTime)
                     continue;
 
+                // Создаем папку на FTP
+                ftp.CreateDirectory(folder.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
+
                 // Получаем все файлы в папке
                 foreach (var localFile in Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly))
                 {
