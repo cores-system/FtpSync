@@ -23,7 +23,7 @@ namespace FtpSync
         {
             // Debug
             //args = new string[] { "base64", "" };
-
+            
             // Кодировка вывода
             Console.OutputEncoding = Encoding.UTF8;
 
@@ -112,27 +112,15 @@ namespace FtpSync
                 #endregion
             }
             #endregion
+            
+            // Получаем список папок
+            List<string> directories = new List<string>() { BaseDir };
+            directories.AddRange(Directory.GetDirectories(BaseDir, "*", SearchOption.AllDirectories));
 
             #region Копируем файлы на FTP/SFTP
-            foreach (var folder in Directory.GetDirectories(BaseDir, "*", SearchOption.AllDirectories))
+            foreach (var folder in directories)
             {
-                // В папке ничего не изменилось
-                if (conf.LastSyncGood > new FileInfo(folder).LastWriteTime)
-                    continue;
-
-                #region Создаем папку на FTP/SFTP
-                string ftpFolder = folder.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder);
-
-                switch (conf.type)
-                {
-                    case "ftp":
-                        ftp.CreateDirectory(ftpFolder);
-                        break;
-                    case "sftp":
-                        sftp.CreateDirectory(ftpFolder);
-                        break;
-                }
-                #endregion
+                bool IsCreateDirectory = false;
 
                 // Получаем все файлы в папке
                 Parallel.ForEach(Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly), new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
@@ -140,6 +128,24 @@ namespace FtpSync
                     // Файл не изменился
                     if (conf.LastSyncGood > new FileInfo(localFile).LastWriteTime)
                         return;
+
+                    #region Создаем папку на FTP/SFTP
+                    if (!IsCreateDirectory)
+                    {
+                        IsCreateDirectory = true;
+                        string ftpFolder = folder.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder);
+
+                        switch (conf.type)
+                        {
+                            case "ftp":
+                                ftp.CreateDirectory(ftpFolder);
+                                break;
+                            case "sftp":
+                                sftp.CreateDirectory(ftpFolder);
+                                break;
+                        }
+                    }
+                    #endregion
 
                     // Загуржаем файл на сервер
                     UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
