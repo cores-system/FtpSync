@@ -55,27 +55,31 @@ namespace FtpSync
                     {
                         try
                         {
-                            // create an FTP client
-                            ftp = new FtpClient(conf.IP, conf.port == -1 ? 21 : conf.port, conf.Login, conf.Passwd);
-
-                            // begin connecting to the server
-                            ftp.Connect();
-                        }
-                        catch
-                        {
-                            // FTPS
-                            ftp = new FtpClient(conf.IP, conf.port == -1 ? 21 : conf.port, conf.Login, conf.Passwd);
-                            ftp.EncryptionMode = FtpEncryptionMode.Explicit;
-                            ftp.SslProtocols = SslProtocols.Tls;
-                            ftp.ValidateCertificate += new FtpSslValidation(OnValidateCertificate);
-                            ftp.Connect();
-
-                            void OnValidateCertificate(FtpClient control, FtpSslValidationEventArgs e)
+                            try
                             {
-                                // add logic to test if certificate is valid here
-                                e.Accept = true;
+                                // create an FTP client
+                                ftp = new FtpClient(conf.IP, conf.port == -1 ? 21 : conf.port, conf.Login, conf.Passwd);
+
+                                // begin connecting to the server
+                                ftp.Connect();
+                            }
+                            catch
+                            {
+                                // FTPS
+                                ftp = new FtpClient(conf.IP, conf.port == -1 ? 21 : conf.port, conf.Login, conf.Passwd);
+                                ftp.EncryptionMode = FtpEncryptionMode.Explicit;
+                                ftp.SslProtocols = SslProtocols.Tls;
+                                ftp.ValidateCertificate += new FtpSslValidation(OnValidateCertificate);
+                                ftp.Connect();
+
+                                void OnValidateCertificate(FtpClient control, FtpSslValidationEventArgs e)
+                                {
+                                    // add logic to test if certificate is valid here
+                                    e.Accept = true;
+                                }
                             }
                         }
+                        catch { }
 
                         if (!ftp.IsConnected)
                         {
@@ -93,8 +97,12 @@ namespace FtpSync
                 #region SFTP
                 case "sftp":
                     {
-                        sftp = new SftpClient(conf.IP, conf.port == -1 ? 22 : conf.port, conf.Login, conf.Passwd);
-                        sftp.Connect();
+                        try
+                        {
+                            sftp = new SftpClient(conf.IP, conf.port == -1 ? 22 : conf.port, conf.Login, conf.Passwd);
+                            sftp.Connect();
+                        }
+                        catch { }
 
                         if (!sftp.IsConnected)
                         {
