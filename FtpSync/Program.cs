@@ -119,7 +119,7 @@ namespace FtpSync
             {
                 // Файл не изменился
                 if (conf.LastSyncGood > new FileInfo(localFile).LastWriteTime)
-                    return;
+                    continue;
 
                 filesToUploadFtp.Add(localFile);
             }
