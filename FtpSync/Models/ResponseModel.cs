@@ -5,10 +5,17 @@ namespace FtpSync.Models
 {
     public class ResponseModel
     {
+        /// <summary>
+        /// Если false то один из файлов небыл загружен
+        /// </summary>
         public bool syncGood;
-        public DateTime lastSyncGood;
-        public string errorMsg;
 
+        /// <summary>
+        /// Текст ошибки
+        /// </summary>
+        public string errorMsg;
+        
+        public DateTime lastSyncGood;
         public List<UploadModel> uploads = new List<UploadModel>();
     }
 }
