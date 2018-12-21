@@ -114,7 +114,7 @@ namespace FtpSync
             // Модель ответа
             ResponseModel res = new ResponseModel()
             {
-                syncGood = true,
+                syncGood = false,
                 lastSyncGood = conf.LastSyncGood
             };
 
