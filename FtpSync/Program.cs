@@ -1,7 +1,9 @@
 ﻿using FluentFTP;
+using FtpSync.Models;
 using Newtonsoft.Json;
 using Renci.SshNet;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Authentication;
 using System.Text;
@@ -20,14 +22,20 @@ namespace FtpSync
         {
             // Debug
             //args = new string[] { "base64", "" };
-
+            
             #region Нельзя запускать несколько exe одновременно
             bool createdNew;
             Mutex M = new Mutex(true, "FtpSync", out createdNew);
             if (!createdNew)
+            {
+                JsonConvert.SerializeObject(new ResponseModel()
+                {
+                    errorMsg = "FtpSync.exe уже запущен"
+                });
                 return;
+            }
             #endregion
-
+            
             // Пользовательский файл настроек
             string fileConf = args.Length > 0 ? args[0] : "conf.json";
 
@@ -37,8 +45,6 @@ namespace FtpSync
             DateTime LastSyncGood = DateTime.Now;
 
             #region Подключаемся к FTP/FTPS/SFTP
-            Console.Write("Connect => ");
-
             switch (conf.type)
             {
                 #region FTP/FTPS
@@ -67,11 +73,13 @@ namespace FtpSync
                                 e.Accept = true;
                             }
                         }
-                        Console.WriteLine(ftp.IsConnected);
 
                         if (!ftp.IsConnected)
                         {
-                            Console.ReadLine();
+                            JsonConvert.SerializeObject(new ResponseModel()
+                            {
+                                errorMsg = "FTP connected is false"
+                            });
                             return;
                         }
 
@@ -85,11 +93,12 @@ namespace FtpSync
                         sftp = new SftpClient(conf.IP, conf.port == -1 ? 22 : conf.port, conf.Login, conf.Passwd);
                         sftp.Connect();
 
-                        Console.WriteLine(sftp.IsConnected);
-
                         if (!sftp.IsConnected)
                         {
-                            Console.ReadLine();
+                            JsonConvert.SerializeObject(new ResponseModel()
+                            {
+                                errorMsg = "SFTP connected is false"
+                            });
                             return;
                         }
 
@@ -98,6 +107,13 @@ namespace FtpSync
                 #endregion
             }
             #endregion
+
+            // Модель ответа
+            ResponseModel res = new ResponseModel()
+            {
+                syncGood = true,
+                lastSyncGood = conf.LastSyncGood
+            };
 
             #region Копируем файлы на FTP/SFTP
             foreach (var folder in Directory.GetDirectories(BaseDir, "*", SearchOption.AllDirectories))
@@ -128,7 +144,7 @@ namespace FtpSync
                         continue;
 
                     // Загуржаем файл на сервер
-                    UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
+                    UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder), ref res.uploads);
                 }
             }
             #endregion
@@ -136,13 +152,21 @@ namespace FtpSync
             #region Сохраняем время последней синхронизации
             if (SyncGood)
             {
-                conf.LastSyncGood = LastSyncGood;
+                res.lastSyncGood = LastSyncGood;
+                res.syncGood = true;
+
                 if (fileConf != "base64")
+                {
+                    conf.LastSyncGood = LastSyncGood;
                     File.WriteAllText(fileConf, JsonConvert.SerializeObject(conf, Formatting.Indented));
+                }
             }
             #endregion
 
-            Console.WriteLine($"\n\nSync {(SyncGood ? "Good" : "Error")}");
+            // Выводим ответ в json
+            JsonConvert.SerializeObject(res);
+
+            // Таймаут
             if (conf.WaitToCloseApp > 0)
                 Thread.Sleep(1000 * conf.WaitToCloseApp);
         }
@@ -155,14 +179,17 @@ namespace FtpSync
         /// <param name="type">ftp/sftp</param>
         /// <param name="localFile">Полный путь к локальному файлу</param>
         /// <param name="remoteFile">Полный путь к удаленому файлу</param>
-        static void UploadFile(string type, string localFile, string remoteFile)
+        static void UploadFile(string type, string localFile, string remoteFile, ref List<UploadModel> uploads)
         {
+            // Модель файла
+            var md = new UploadModel() { remoteFile = remoteFile };
+
             try
             {
                 using (var localFileStream = File.OpenRead(localFile))
                 {
                     // Расположение локального файла
-                    Console.Write(localFile.Replace("\\", "/").Replace(BaseDir, "") + " => ");
+                    md.localFile = localFile.Replace("\\", "/").Replace(BaseDir, "");
 
                     #region Загружаем файл на FTP/SFTP
                     switch (type)
@@ -177,14 +204,18 @@ namespace FtpSync
                     #endregion
 
                     // Успех
-                    Console.WriteLine(true);
+                    md.uploadResult = true;
                 }
             }
             catch (Exception ex)
             {
                 SyncGood = false;
-                Console.WriteLine(ex.ToString());
+                md.uploadResult = false;
+                md.errorMsg = ex.Message;
             }
+
+            // Обновляем колекцию
+            uploads.Add(md);
         }
         #endregion
 
