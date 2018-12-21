@@ -21,6 +21,13 @@ namespace FtpSync
             // Debug
             //args = new string[] { "base64", "" };
 
+            #region Нельзя запускать несколько exe одновременно
+            bool createdNew;
+            Mutex M = new Mutex(true, "FtpSync", out createdNew);
+            if (!createdNew)
+                return;
+            #endregion
+
             // Пользовательский файл настроек
             string fileConf = args.Length > 0 ? args[0] : "conf.json";
 
