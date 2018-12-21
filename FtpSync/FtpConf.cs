@@ -4,6 +4,8 @@ namespace FtpSync
 {
     public class FtpConf
     {
+        public string type { get; set; } = "ftp"; // ftp || sftp
+
         public string IP { get; set; }
         public string Login { get; set; }
         public string Passwd { get; set; }
