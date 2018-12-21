@@ -8,6 +8,7 @@ using System.IO;
 using System.Security.Authentication;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FtpSync
 {
@@ -148,15 +149,15 @@ namespace FtpSync
                 #endregion
 
                 // Получаем все файлы в папке
-                foreach (var localFile in Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly))
+                Parallel.ForEach(Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly), new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
                 {
                     // Файл не изменился
                     if (conf.LastSyncGood > new FileInfo(localFile).LastWriteTime)
-                        continue;
+                        return;
 
                     // Загуржаем файл на сервер
                     UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder), ref res.uploads);
-                }
+                });
             }
             #endregion
 
