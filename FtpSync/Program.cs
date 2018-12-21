@@ -14,16 +14,19 @@ namespace FtpSync
 {
     class Program
     {
+        #region Program
         static FtpClient ftp;
         static SftpClient sftp;
         static string BaseDir;
         static bool SyncGood = true;
+        static IDictionary<string, int> CreateDirectorys = new Dictionary<string, int>();
+        #endregion
 
         static void Main(string[] args)
         {
             // Debug
             //args = new string[] { "base64", "" };
-            
+
             // Кодировка вывода
             Console.OutputEncoding = Encoding.UTF8;
 
@@ -129,30 +132,13 @@ namespace FtpSync
             #endregion
             
             #region Копируем файлы на FTP/SFTP
-            string lastCreateDirectory = string.Empty;
             Parallel.ForEach(filesToUploadFtp, new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
             {
-                #region Создаем папку на FTP/SFTP
-                string createDirectoryName = Path.GetDirectoryName(localFile) + "/";
-                if (lastCreateDirectory != createDirectoryName)
-                {
-                    lastCreateDirectory = createDirectoryName;
-                    string ftpFolder = createDirectoryName.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder);
-
-                    switch (conf.type)
-                    {
-                        case "ftp":
-                            ftp.CreateDirectory(ftpFolder);
-                            break;
-                        case "sftp":
-                            sftp.CreateDirectory(ftpFolder);
-                            break;
-                    }
-                }
-                #endregion
+                // Создаем папку на FTP/SFTP
+                CreateDirectory(conf.type, Path.GetDirectoryName(localFile), conf.FtpFolder);
 
                 // Загуржаем файл на сервер
-                UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
+                UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder), conf.FtpFolder);
             });
             #endregion
 
@@ -167,7 +153,7 @@ namespace FtpSync
             // Выводим финальный ответ
             Thread.Sleep(300);
             WriteLine(Methods.syncGood, SyncGood);
-            WriteLine(Methods.lastSyncGood, SyncGood ? LastSyncGood : conf.LastSyncGood);
+            WriteLine(Methods.lastSyncGood, LastSyncGood);
 
             // Таймаут
             WaitToCloseApp(conf);
@@ -181,10 +167,11 @@ namespace FtpSync
         /// <param name="type">ftp/sftp</param>
         /// <param name="localFile">Полный путь к локальному файлу</param>
         /// <param name="remoteFile">Полный путь к удаленому файлу</param>
-        static void UploadFile(string type, string localFile, string remoteFile)
+        /// <param name="remoteFolder"></param>
+        static void UploadFile(string type, string localFile, string remoteFile, string remoteFolder)
         {
             // Модель файла
-            var md = new UploadModel() { remoteFile = remoteFile };
+            var md = new UploadModel() { remoteFile = remoteFile.Replace(remoteFolder, "") };
 
             try
             {
@@ -193,17 +180,16 @@ namespace FtpSync
                     // Расположение локального файла
                     md.localFile = localFile.Replace("\\", "/").Replace(BaseDir, "");
 
-                    #region Загружаем файл на FTP/SFTP
+                    // Загружаем файл
                     switch (type)
                     {
                         case "ftp":
-                            ftp.Upload(localFileStream, remoteFile, FtpExists.Overwrite, true);
+                            ftp.Upload(localFileStream, remoteFile, FtpExists.Overwrite);
                             break;
                         case "sftp":
                             sftp.UploadFile(localFileStream, remoteFile, true);
                             break;
                     }
-                    #endregion
 
                     // Успех
                     md.uploadResult = true;
@@ -220,6 +206,47 @@ namespace FtpSync
             WriteLine(Methods.uploadFile, md);
         }
         #endregion
+
+        #region CreateDirectory
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="localFolder"></param>
+        /// <param name="remoteFolder"></param>
+        static void CreateDirectory(string type, string localFolder, string remoteFolder)
+        {
+            string dirPath = "/";
+            foreach (string DirName in localFolder.Replace("\\", "/").Replace(BaseDir, remoteFolder).Split('/'))
+            {
+                if (string.IsNullOrWhiteSpace(DirName))
+                    continue;
+
+                try
+                {
+                    dirPath += DirName + "/";
+                    if (!CreateDirectorys.TryGetValue(dirPath, out _))
+                    {
+                        CreateDirectorys.Add(dirPath, 0);
+                        if (!dirPath.Contains(remoteFolder))
+                            continue;
+
+                        switch (type)
+                        {
+                            case "ftp":
+                                ftp.CreateDirectory(dirPath);
+                                break;
+                            case "sftp":
+                                sftp.CreateDirectory(dirPath);
+                                break;
+                        }
+                    }
+                }
+                catch { }
+            }
+        }
+        #endregion
+
 
         #region Base64Decode
         /// <summary>
