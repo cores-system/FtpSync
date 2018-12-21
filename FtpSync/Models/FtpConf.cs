@@ -14,7 +14,7 @@ namespace FtpSync
         public string FtpFolder { get; set; }
         public string LocalFolder { get; set; }
 
-        public DateTime LastSyncGood { get; set; } = DateTime.Now;
+        public DateTime LastSyncGood { get; set; }
         public int WaitToCloseApp { get; set; } = 5;
     }
 }
