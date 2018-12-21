@@ -125,7 +125,7 @@ namespace FtpSync
             }
 
             // Выводим количиство файлов для загрузки на FTP/SFTP
-            WriteLine(Methods.uploadStat, new UploadStat(-1, filesToUploadFtp.Count));
+            WriteLine(Methods.uploadStat, filesToUploadFtp.Count);
             #endregion
             
             #region Копируем файлы на FTP/SFTP
