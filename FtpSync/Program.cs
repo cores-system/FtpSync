@@ -112,45 +112,48 @@ namespace FtpSync
                 #endregion
             }
             #endregion
-            
-            // Получаем список папок
-            List<string> directories = new List<string>() { BaseDir };
-            directories.AddRange(Directory.GetDirectories(BaseDir, "*", SearchOption.AllDirectories));
 
-            #region Копируем файлы на FTP/SFTP
-            foreach (var folder in directories)
+            #region Список файлов для загрузки на FTP/SFTP
+            List<string> filesToUploadFtp = new List<string>();
+            foreach (var localFile in Directory.GetFiles(BaseDir, "*", SearchOption.AllDirectories))
             {
-                bool IsCreateDirectory = false;
+                // Файл не изменился
+                if (conf.LastSyncGood > new FileInfo(localFile).LastWriteTime)
+                    return;
 
-                // Получаем все файлы в папке
-                Parallel.ForEach(Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly), new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
-                {
-                    // Файл не изменился
-                    if (conf.LastSyncGood > new FileInfo(localFile).LastWriteTime)
-                        return;
-
-                    #region Создаем папку на FTP/SFTP
-                    if (!IsCreateDirectory)
-                    {
-                        IsCreateDirectory = true;
-                        string ftpFolder = folder.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder);
-
-                        switch (conf.type)
-                        {
-                            case "ftp":
-                                ftp.CreateDirectory(ftpFolder);
-                                break;
-                            case "sftp":
-                                sftp.CreateDirectory(ftpFolder);
-                                break;
-                        }
-                    }
-                    #endregion
-
-                    // Загуржаем файл на сервер
-                    UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
-                });
+                filesToUploadFtp.Add(localFile);
             }
+
+            // Выводим количиство файлов для загрузки на FTP/SFTP
+            WriteLine(Methods.uploadStat, new UploadStat(-1, filesToUploadFtp.Count));
+            #endregion
+            
+            #region Копируем файлы на FTP/SFTP
+            string lastCreateDirectory = string.Empty;
+            Parallel.ForEach(filesToUploadFtp, new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
+            {
+                #region Создаем папку на FTP/SFTP
+                string createDirectoryName = Path.GetDirectoryName(localFile) + "/";
+                if (lastCreateDirectory != createDirectoryName)
+                {
+                    lastCreateDirectory = createDirectoryName;
+                    string ftpFolder = createDirectoryName.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder);
+
+                    switch (conf.type)
+                    {
+                        case "ftp":
+                            ftp.CreateDirectory(ftpFolder);
+                            break;
+                        case "sftp":
+                            sftp.CreateDirectory(ftpFolder);
+                            break;
+                    }
+                }
+                #endregion
+
+                // Загуржаем файл на сервер
+                UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
+            });
             #endregion
 
             #region Сохраняем время последней синхронизации
