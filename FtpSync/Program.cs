@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Security.Authentication;
 using System.Threading;
 
 namespace FtpSync
@@ -19,11 +20,30 @@ namespace FtpSync
             BaseDir = conf.LocalFolder.Replace("\\", "/");
             DateTime LastSyncGood = DateTime.Now;
 
-            #region Подключаемся к FTP
-            ftp = new FtpClient(conf.IP, 21, conf.Login, conf.Passwd);
-
+            #region Подключаемся к FTP/FTPS
             Console.Write("Connect => ");
-            ftp.Connect();
+            try
+            {
+                // create an FTP client
+                ftp = new FtpClient(conf.IP, 21, conf.Login, conf.Passwd);
+
+                // begin connecting to the server
+                ftp.Connect();
+            }
+            catch
+            {
+                ftp = new FtpClient(conf.IP, 21, conf.Login, conf.Passwd);
+                ftp.EncryptionMode = FtpEncryptionMode.Explicit;
+                ftp.SslProtocols = SslProtocols.Tls;
+                ftp.ValidateCertificate += new FtpSslValidation(OnValidateCertificate);
+                ftp.Connect();
+
+                void OnValidateCertificate(FtpClient control, FtpSslValidationEventArgs e)
+                {
+                    // add logic to test if certificate is valid here
+                    e.Accept = true;
+                }
+            }
             Console.WriteLine(ftp.IsConnected);
 
             if (!ftp.IsConnected)
