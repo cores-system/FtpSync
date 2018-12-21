@@ -57,6 +57,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\FtpConf.cs" />
+    <Compile Include="Models\Methods.cs" />
     <Compile Include="Models\ResponseModel.cs" />
     <Compile Include="Models\UploadModel.cs" />
     <Compile Include="Program.cs" />

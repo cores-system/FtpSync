@@ -32,10 +32,7 @@ namespace FtpSync
             Mutex M = new Mutex(true, "FtpSync", out createdNew);
             if (!createdNew)
             {
-                Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
-                {
-                    errorMsg = "FtpSync.exe уже запущен"
-                }));
+                WriteLine(Methods.errorMsg, "FtpSync.exe уже запущен");
                 return;
             }
             #endregion
@@ -84,10 +81,8 @@ namespace FtpSync
 
                         if (!ftp.IsConnected)
                         {
-                            Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
-                            {
-                                errorMsg = "FTP connected is false"
-                            }));
+                            WriteLine(Methods.errorMsg, "FTP connected is false");
+                            WaitToCloseApp(conf);
                             return;
                         }
 
@@ -107,10 +102,8 @@ namespace FtpSync
 
                         if (!sftp.IsConnected)
                         {
-                            Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
-                            {
-                                errorMsg = "SFTP connected is false"
-                            }));
+                            WriteLine(Methods.errorMsg, "SFTP connected is false");
+                            WaitToCloseApp(conf);
                             return;
                         }
 
@@ -119,13 +112,6 @@ namespace FtpSync
                 #endregion
             }
             #endregion
-
-            // Модель ответа
-            ResponseModel res = new ResponseModel()
-            {
-                syncGood = false,
-                lastSyncGood = conf.LastSyncGood
-            };
 
             #region Копируем файлы на FTP/SFTP
             foreach (var folder in Directory.GetDirectories(BaseDir, "*", SearchOption.AllDirectories))
@@ -156,31 +142,25 @@ namespace FtpSync
                         return;
 
                     // Загуржаем файл на сервер
-                    UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder), ref res.uploads);
+                    UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder));
                 });
             }
             #endregion
 
             #region Сохраняем время последней синхронизации
-            if (SyncGood)
+            if (SyncGood && fileConf != "base64")
             {
-                res.lastSyncGood = LastSyncGood;
-                res.syncGood = true;
-
-                if (fileConf != "base64")
-                {
-                    conf.LastSyncGood = LastSyncGood;
-                    File.WriteAllText(fileConf, JsonConvert.SerializeObject(conf, Formatting.Indented));
-                }
+                conf.LastSyncGood = LastSyncGood;
+                File.WriteAllText(fileConf, JsonConvert.SerializeObject(conf, Formatting.Indented));
             }
             #endregion
 
-            // Выводим ответ в json
-            Console.WriteLine(JsonConvert.SerializeObject(res));
+            // Выводим финальный ответ
+            WriteLine(Methods.syncGood, SyncGood);
+            WriteLine(Methods.lastSyncGood, SyncGood ? LastSyncGood : conf.LastSyncGood);
 
             // Таймаут
-            if (conf.WaitToCloseApp > 0)
-                Thread.Sleep(1000 * conf.WaitToCloseApp);
+            WaitToCloseApp(conf);
         }
 
 
@@ -191,7 +171,7 @@ namespace FtpSync
         /// <param name="type">ftp/sftp</param>
         /// <param name="localFile">Полный путь к локальному файлу</param>
         /// <param name="remoteFile">Полный путь к удаленому файлу</param>
-        static void UploadFile(string type, string localFile, string remoteFile, ref List<UploadModel> uploads)
+        static void UploadFile(string type, string localFile, string remoteFile)
         {
             // Модель файла
             var md = new UploadModel() { remoteFile = remoteFile };
@@ -217,6 +197,8 @@ namespace FtpSync
 
                     // Успех
                     md.uploadResult = true;
+
+                    Console.WriteLine(md.localFile);
                 }
             }
             catch (Exception ex)
@@ -226,8 +208,8 @@ namespace FtpSync
                 md.errorMsg = ex.Message;
             }
 
-            // Обновляем колекцию
-            uploads.Add(md);
+            // Выводим результат
+            WriteLine(Methods.uploadFile, md);
         }
         #endregion
 
@@ -239,6 +221,35 @@ namespace FtpSync
         static string Base64Decode(string base64Encoded)
         {
             return Encoding.UTF8.GetString(Convert.FromBase64String(base64Encoded));
+        }
+        #endregion
+
+        #region WaitToCloseApp
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="conf"></param>
+        static void WaitToCloseApp(FtpConf conf)
+        {
+            // Таймаут
+            if (conf.WaitToCloseApp > 0)
+                Thread.Sleep(1000 * conf.WaitToCloseApp);
+        }
+        #endregion
+
+        #region WriteLine
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="method"></param>
+        /// <param name="data"></param>
+        static void WriteLine(Methods method, object data)
+        {
+            Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
+            {
+                method = method.ToString(),
+                data = data
+            }));
         }
         #endregion
     }
