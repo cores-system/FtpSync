@@ -165,6 +165,7 @@ namespace FtpSync
             #endregion
 
             // Выводим финальный ответ
+            Thread.Sleep(300);
             WriteLine(Methods.syncGood, SyncGood);
             WriteLine(Methods.lastSyncGood, SyncGood ? LastSyncGood : conf.LastSyncGood);
 
