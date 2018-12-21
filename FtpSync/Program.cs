@@ -4,6 +4,7 @@ using Renci.SshNet;
 using System;
 using System.IO;
 using System.Security.Authentication;
+using System.Text;
 using System.Threading;
 
 namespace FtpSync
@@ -17,11 +18,14 @@ namespace FtpSync
 
         static void Main(string[] args)
         {
+            // Debug
+            //args = new string[] { "base64", "" };
+
             // Пользовательский файл настроек
             string fileConf = args.Length > 0 ? args[0] : "conf.json";
 
             // Загружаем конфиги
-            FtpConf conf = JsonConvert.DeserializeObject<FtpConf>(File.ReadAllText(fileConf));
+            FtpConf conf = JsonConvert.DeserializeObject<FtpConf>(fileConf == "base64" ? Base64Decode(args[1]) : File.ReadAllText(fileConf));
             BaseDir = conf.LocalFolder.Replace("\\", "/");
             DateTime LastSyncGood = DateTime.Now;
 
@@ -126,7 +130,8 @@ namespace FtpSync
             if (SyncGood)
             {
                 conf.LastSyncGood = LastSyncGood;
-                File.WriteAllText(fileConf, JsonConvert.SerializeObject(conf, Formatting.Indented));
+                if (fileConf != "base64")
+                    File.WriteAllText(fileConf, JsonConvert.SerializeObject(conf, Formatting.Indented));
             }
             #endregion
 
@@ -173,6 +178,17 @@ namespace FtpSync
                 SyncGood = false;
                 Console.WriteLine(ex.ToString());
             }
+        }
+        #endregion
+
+        #region Base64Decode
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="base64Encoded"></param>
+        static string Base64Decode(string base64Encoded)
+        {
+            return Encoding.UTF8.GetString(Convert.FromBase64String(base64Encoded));
         }
         #endregion
     }
