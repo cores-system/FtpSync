@@ -17,8 +17,11 @@ namespace FtpSync
 
         static void Main(string[] args)
         {
+            // Пользовательский файл настроек
+            string fileConf = args.Length > 0 ? args[0] : "conf.json";
+
             // Загружаем конфиги
-            FtpConf conf = JsonConvert.DeserializeObject<FtpConf>(File.ReadAllText("conf.json"));
+            FtpConf conf = JsonConvert.DeserializeObject<FtpConf>(File.ReadAllText(fileConf));
             BaseDir = conf.LocalFolder.Replace("\\", "/");
             DateTime LastSyncGood = DateTime.Now;
 
@@ -123,7 +126,7 @@ namespace FtpSync
             if (SyncGood)
             {
                 conf.LastSyncGood = LastSyncGood;
-                File.WriteAllText("conf.json", JsonConvert.SerializeObject(conf, Formatting.Indented));
+                File.WriteAllText(fileConf, JsonConvert.SerializeObject(conf, Formatting.Indented));
             }
             #endregion
 
