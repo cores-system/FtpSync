@@ -197,8 +197,6 @@ namespace FtpSync
 
                     // Успех
                     md.uploadResult = true;
-
-                    Console.WriteLine(md.localFile);
                 }
             }
             catch (Exception ex)
