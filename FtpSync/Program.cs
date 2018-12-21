@@ -22,16 +22,19 @@ namespace FtpSync
         {
             // Debug
             //args = new string[] { "base64", "" };
-            
+
+            // Кодировка вывода
+            Console.OutputEncoding = Encoding.UTF8;
+
             #region Нельзя запускать несколько exe одновременно
             bool createdNew;
             Mutex M = new Mutex(true, "FtpSync", out createdNew);
             if (!createdNew)
             {
-                JsonConvert.SerializeObject(new ResponseModel()
+                Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
                 {
                     errorMsg = "FtpSync.exe уже запущен"
-                });
+                }));
                 return;
             }
             #endregion
@@ -76,10 +79,10 @@ namespace FtpSync
 
                         if (!ftp.IsConnected)
                         {
-                            JsonConvert.SerializeObject(new ResponseModel()
+                            Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
                             {
                                 errorMsg = "FTP connected is false"
-                            });
+                            }));
                             return;
                         }
 
@@ -95,10 +98,10 @@ namespace FtpSync
 
                         if (!sftp.IsConnected)
                         {
-                            JsonConvert.SerializeObject(new ResponseModel()
+                            Console.WriteLine(JsonConvert.SerializeObject(new ResponseModel()
                             {
                                 errorMsg = "SFTP connected is false"
-                            });
+                            }));
                             return;
                         }
 
@@ -164,7 +167,7 @@ namespace FtpSync
             #endregion
 
             // Выводим ответ в json
-            JsonConvert.SerializeObject(res);
+            Console.WriteLine(JsonConvert.SerializeObject(res));
 
             // Таймаут
             if (conf.WaitToCloseApp > 0)
