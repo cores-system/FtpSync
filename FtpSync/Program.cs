@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Authentication;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,16 +30,6 @@ namespace FtpSync
 
             // Кодировка вывода
             Console.OutputEncoding = Encoding.UTF8;
-
-            #region Нельзя запускать несколько exe одновременно
-            bool createdNew;
-            Mutex M = new Mutex(true, "FtpSync", out createdNew);
-            if (!createdNew)
-            {
-                WriteLine(Methods.errorMsg, "FtpSync.exe уже запущен");
-                return;
-            }
-            #endregion
             
             // Пользовательский файл настроек
             string fileConf = args.Length > 0 ? args[0] : "conf.json";
@@ -120,8 +111,14 @@ namespace FtpSync
             List<string> filesToUploadFtp = new List<string>();
             foreach (var localFile in Directory.GetFiles(BaseDir, "*", SearchOption.AllDirectories))
             {
+                // Информация о файле
+                FileInfo fileInfo = new FileInfo(localFile);
+
+                // Высшая дата
+                DateTime checkTime = fileInfo.LastWriteTime > fileInfo.CreationTime ? fileInfo.LastWriteTime : fileInfo.CreationTime;
+
                 // Файл не изменился
-                if (conf.LastSyncGood > new FileInfo(localFile).LastWriteTime)
+                if (conf.LastSyncGood > checkTime)
                     continue;
 
                 filesToUploadFtp.Add(localFile);
@@ -175,7 +172,11 @@ namespace FtpSync
 
             try
             {
-                using (var localFileStream = File.OpenRead(localFile))
+                // Системный файл
+                bool IsCeronFile = Regex.IsMatch(Path.GetFileName(localFile), @"\.(ce|html|css)$", RegexOptions.IgnoreCase);
+
+                // Считываем файл или открываем на чтение
+                using (var localFileStream = IsCeronFile ? new MemoryStream(File.ReadAllBytes(localFile)) : (Stream)File.OpenRead(localFile))
                 {
                     // Расположение локального файла
                     md.localFile = localFile.Replace("\\", "/").Replace(BaseDir, "");
