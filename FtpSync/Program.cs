@@ -173,7 +173,7 @@ namespace FtpSync
             try
             {
                 // Системный файл
-                bool IsCeronFile = Regex.IsMatch(Path.GetFileName(localFile), @"\.(ce|html|css)$", RegexOptions.IgnoreCase);
+                bool IsCeronFile = Regex.IsMatch(Path.GetFileName(localFile), @"\.(ce|blu|html|css)$", RegexOptions.IgnoreCase);
 
                 // Считываем файл или открываем на чтение
                 using (var localFileStream = IsCeronFile ? new MemoryStream(File.ReadAllBytes(localFile)) : (Stream)File.OpenRead(localFile))
