@@ -2,6 +2,7 @@
 using FtpSync.Models;
 using Newtonsoft.Json;
 using Renci.SshNet;
+using Renci.SshNet.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -196,12 +197,39 @@ namespace FtpSync
                     md.uploadResult = true;
                 }
             }
-            catch (Exception ex)
+
+            #region SFTP Exception
+            catch (SshConnectionException ex) {
+                WriteException(ex.Message);
+            }
+            catch (SftpPermissionDeniedException ex) {
+                WriteException(ex.Message);
+            }
+            catch (SshException ex) {
+                WriteException(ex.Message);
+            }
+            #endregion
+
+            #region FTP/SFTP Exception
+            catch (FtpException ex) {
+                WriteException(ex.Message);
+            }
+            #endregion
+
+            #region Default Exception
+            catch (Exception ex) {
+                WriteException(ex.Message);
+            }
+            #endregion
+
+            #region Локальный метод - "WriteException"
+            void WriteException(string msg)
             {
                 SyncGood = false;
                 md.uploadResult = false;
-                md.errorMsg = ex.Message;
+                md.errorMsg = msg;
             }
+            #endregion
 
             // Выводим результат
             WriteLine(Methods.uploadFile, md);
