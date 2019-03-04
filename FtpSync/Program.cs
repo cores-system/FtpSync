@@ -128,16 +128,34 @@ namespace FtpSync
             // Выводим количиство файлов для загрузки на FTP/SFTP
             WriteLine(Methods.uploadStat, filesToUploadFtp.Count);
             #endregion
-            
+
             #region Копируем файлы на FTP/SFTP
-            Parallel.ForEach(filesToUploadFtp, new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
+            int countUploadToErrorFiles = 0;
+            List<string> filesToErrorUploadFtp = new List<string>();
+
+            // Заливаем файлы
+            ResetUpload: Parallel.ForEach(filesToUploadFtp, new ParallelOptions { MaxDegreeOfParallelism = (conf.type == "ftp" ? 1 : 10) }, localFile =>
             {
                 // Создаем папку на FTP/SFTP
                 CreateDirectory(conf.type, Path.GetDirectoryName(localFile), conf.FtpFolder);
 
                 // Загуржаем файл на сервер
-                UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder), conf.FtpFolder);
+                if (!UploadFile(conf.type, localFile, localFile.Replace("\\", "/").Replace(BaseDir, conf.FtpFolder), conf.FtpFolder, countUploadToErrorFiles >= 3))
+                    filesToErrorUploadFtp.Add(localFile);
             });
+
+            // Отправляем на повторную загрузку
+            if (3 > countUploadToErrorFiles && filesToErrorUploadFtp.Count > 0)
+            {
+                filesToUploadFtp = new List<string>();
+                filesToUploadFtp.AddRange(filesToErrorUploadFtp);
+
+                filesToErrorUploadFtp = new List<string>();
+                countUploadToErrorFiles++;
+
+                Task.Delay(1000 * 3);
+                goto ResetUpload;
+            }
             #endregion
 
             #region Сохраняем время последней синхронизации
@@ -166,7 +184,7 @@ namespace FtpSync
         /// <param name="localFile">Полный путь к локальному файлу</param>
         /// <param name="remoteFile">Полный путь к удаленому файлу</param>
         /// <param name="remoteFolder"></param>
-        static void UploadFile(string type, string localFile, string remoteFile, string remoteFolder)
+        static bool UploadFile(string type, string localFile, string remoteFile, string remoteFolder, bool showErrorUploadResult)
         {
             // Модель файла
             var md = new UploadModel() { remoteFile = remoteFile.Replace(remoteFolder, "") };
@@ -175,6 +193,10 @@ namespace FtpSync
             {
                 // Системный файл
                 bool IsCeronFile = Regex.IsMatch(Path.GetFileName(localFile), @"\.(ce|blu|html|css)$", RegexOptions.IgnoreCase);
+
+                // Файл недоступен
+                if (!File.Exists(localFile))
+                    return true;
 
                 // Считываем файл или открываем на чтение
                 using (var localFileStream = IsCeronFile ? new MemoryStream(File.ReadAllBytes(localFile)) : (Stream)File.OpenRead(localFile))
@@ -200,19 +222,25 @@ namespace FtpSync
 
             #region SFTP Exception
             catch (SshConnectionException ex) {
-                WriteException(ex.Message);
+                WriteException(ex.InnerException.Message);
+            }
+            catch (SftpPathNotFoundException ex) {
+                WriteException(ex.InnerException.Message);
             }
             catch (SftpPermissionDeniedException ex) {
-                WriteException(ex.Message);
+                WriteException(ex.InnerException.Message);
             }
             catch (SshException ex) {
-                WriteException(ex.Message);
+                WriteException(ex.InnerException.Message);
             }
             #endregion
 
             #region FTP/SFTP Exception
+            catch (FtpCommandException ex) {
+                WriteException(ex.InnerException.Message);
+            }
             catch (FtpException ex) {
-                WriteException(ex.Message);
+                WriteException(ex.InnerException.Message);
             }
             #endregion
 
@@ -225,14 +253,20 @@ namespace FtpSync
             #region Локальный метод - "WriteException"
             void WriteException(string msg)
             {
-                SyncGood = false;
+                if (showErrorUploadResult)
+                    SyncGood = false;
+
                 md.uploadResult = false;
                 md.errorMsg = msg;
             }
             #endregion
 
             // Выводим результат
-            WriteLine(Methods.uploadFile, md);
+            if (showErrorUploadResult || md.uploadResult)
+                WriteLine(Methods.uploadFile, md);
+
+            // Результат
+            return md.uploadResult;
         }
         #endregion
 
