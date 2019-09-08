@@ -232,7 +232,9 @@ namespace FtpSync
                     switch (type)
                     {
                         case "ftp":
-                            ftp.Upload(localFileStream, remoteFile, FtpExists.Overwrite);
+                            ftp.Upload(localFileStream, remoteFile, FtpExists.Overwrite, 
+                                progress: new Progress<double>(percent => WriteLine(Methods.progressUploadFile, new ProgressModel(md.localFile, remoteFile, percent)))
+                            );
                             break;
                         case "sftp":
                             sftp.UploadFile(localFileStream, remoteFile, true);
