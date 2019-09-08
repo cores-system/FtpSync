@@ -13,6 +13,7 @@ namespace FtpSync
 
         public string FtpFolder { get; set; }
         public string LocalFolder { get; set; }
+        public string Exclude { get; set; }
 
         public DateTime LastSyncGood { get; set; }
         public int WaitToCloseApp { get; set; } = 5;

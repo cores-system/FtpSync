@@ -6,6 +6,7 @@ using Renci.SshNet.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Authentication;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -110,8 +111,27 @@ namespace FtpSync
 
             #region Список файлов для загрузки на FTP/SFTP
             List<string> filesToUploadFtp = new List<string>();
-            foreach (var localFile in Directory.GetFiles(BaseDir, "*", SearchOption.AllDirectories))
+            foreach (string localFile in Directory.GetFiles(BaseDir, "*", SearchOption.AllDirectories))
             {
+                #region Локальный метод - "IsExcludeFolder"
+                bool IsExcludeFolder()
+                {
+                    if (conf.Exclude != null)
+                    {
+                        foreach (string exclude in conf.Exclude.Split(','))
+                        {
+                            if (string.IsNullOrWhiteSpace(exclude?.Replace("/", "")))
+                                continue;
+
+                            if (localFile.Replace("\\", "/").Contains($"{conf.LocalFolder}/{exclude}"))
+                                return true;
+                        }
+                    }
+
+                    return false;
+                }
+                #endregion
+
                 // Информация о файле
                 FileInfo fileInfo = new FileInfo(localFile);
 
@@ -120,6 +140,10 @@ namespace FtpSync
 
                 // Файл не изменился
                 if (conf.LastSyncGood > checkTime)
+                    continue;
+
+                // Файлы в этой папки не нужно заливать
+                if (IsExcludeFolder())
                     continue;
 
                 filesToUploadFtp.Add(localFile);
